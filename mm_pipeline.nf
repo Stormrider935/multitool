@@ -19,7 +19,7 @@ fastq_input_ch = Channel
 
 //start flye
 if (params.flye && params.fastq) { 
-        include 'modules/flye' params(output: params.output)
+        include 'modules/flye' params(output: params.output, meta: params.meta, g: params.g)
         flye(fastq_input_ch)}
 
 
@@ -29,12 +29,35 @@ if (params.fastqtofasta && params.fastq) {
         fastqtofasta(fastq_input_ch)}
 
 
+if (params.nanoplot && params.fastq) { 
+        include 'modules/nanoplot' params(output: params.output)
+        nanoplot(fastq_input_ch)}
+
+
 def helpMSG() {
 
+ c_light_green = "\033[0;92m";
+ c_reset = "\033[0m";
+ c_light_magenta = "\033[0;95m";
+ c_cyan = "\033[0;36m";
+ c_dim = "\033[2m";
+    
+    log.info """
+    ____________________________________________________________________________________________
+    
+    Nextflow Multitool for easy use, by Mike Marquet
+    
+    ${c_light_magenta}Usage example:${c_reset}
+    nextflow run Stormrider935/multitool --fastq '*/*.fastq' --nanoplot 
+    ${c_light_green}Input:${c_reset}
+    ${c_light_green} --fastq ${c_reset}            '*.fastq'   -> read file(s) in fastq, one sample per file - uses filename
 
-log.info"""
-        usage examample
-        nextflow run mm_flye_assembler.nf 
+    ${c_cyan} Workflow    ${c_reset}                                             ${c_light_green}Input:${c_reset}
+    ${c_cyan} --flye  ${c_reset}             assembly via flye-assembler         ${c_light_green}[--fastq]${c_reset}
+    ${c_dim}  ..option/mandatory flags:      [--meta] for metagenomes  [--g] mandatory! estimated genome size for ${c_reset}
 
-""".stripIndent()
+    ${c_cyan} --nanoplot  ${c_reset}         read quality via nanoplot           ${c_light_green}[--fastq]${c_reset}
+    ${c_cyan} --fastqtofasta  ${c_reset}     converts fastq to fasta             ${c_light_green}[--fastq]${c_reset}
+    
+    """.stripIndent()
 }

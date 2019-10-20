@@ -1,5 +1,5 @@
 process fastqtofasta {
-      publishDir "${params.output}/${name}/", mode: 'copy', pattern: "${name}.fasta"
+      publishDir "${params.output}/${name}/fastqtofasta", mode: 'copy', pattern: "${name}.fasta"
       label 'fastqtofasta'
     input:
       set val(name), file(fastq)
