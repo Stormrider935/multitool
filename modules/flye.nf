@@ -2,9 +2,9 @@ process flye {
       publishDir "${params.output}/${name}/flye/", mode: 'copy', pattern: "${name}.fasta"
       label 'flye'
     input:
-      set val(name), file(read)  // val(name) basename von file; file(read) Path to read (ist  das .map von .nf)
+      tuple val(name), file(read)  // val(name) basename von file; file(read) Path to read (ist  das .map von .nf)
     output:
-      set val(name), file(read), file("${name}.fasta") // dem channel den output hinzufügen damit vers. inputs nicht vertauscht werden wenn prozesse früher fertig sind
+      tuple val(name), file(read), file("${name}.fasta") // dem channel den output hinzufügen damit vers. inputs nicht vertauscht werden wenn prozesse früher fertig sind
     script:
       if (params.meta == '')
       """

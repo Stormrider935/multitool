@@ -6,7 +6,7 @@ if (params.help) {exit 0, helpMSG ()}
 if (!params.fastq) {exit 1, "input missing, use [--fastq]"}
 
 
-// daten in chanel laden
+// Channel input Handling
 if (params.fastq) {
 fastq_input_ch = Channel
                 .fromPath( params.fastq, checkIfExists:true) //schaut ob es auch wirklich eine file ist
@@ -15,23 +15,62 @@ fastq_input_ch = Channel
 }
 
 
-//modul hinzufügen
-
-//start flye
-if (params.flye && params.fastq) { 
-        include 'modules/flye' params(output: params.output, meta: params.meta, g: params.g)
-        flye(fastq_input_ch)}
+//moduls
 
 
-//start fastqtofasta
-if (params.fastqtofasta && params.fastq) { 
-        include 'modules/fastqtofasta' params(output: params.output)
-        fastqtofasta(fastq_input_ch)}
+
+include './modules/fastqtofasta' params(output: params.output)
+include './modules/filtlong' params(output: params.output, filterlenght: params.filterlenght)
+include './modules/flye' params(output: params.output, meta: params.meta, g: params.g)
+include './modules/nanoplot' params(output: params.output)
+include './modules/spades' params(output: params.output)
+
+// Sub-workflows
+
+workflow flye_wf {
+        get:    fasta
+        main:   flye(fasta)
+        emit:   flye.out   
+}
 
 
-if (params.nanoplot && params.fastq) { 
-        include 'modules/nanoplot' params(output: params.output)
-        nanoplot(fastq_input_ch)}
+workflow fastqtofasta_wf {
+        get:    fasta
+        main:   fastqtofasta(fasta)
+        emit:   fastqtofasta.out   
+}
+
+
+workflow nanoplot_wf {
+        get:    fasta
+        main:   nanoplot(fasta)
+        emit:   nanoplot.out   
+}
+
+
+workflow spades_wf {
+        get:    fasta
+        main:   spades(fasta)
+        emit:   spades.out   
+}
+
+workflow filtlong_wf {
+        get:    fasta
+        main:   filtlong(fasta)
+        emit:   filtlong.out   
+}
+
+
+//mainworkflow
+
+workflow {
+if (params.flye && params.fastq)                { flye_wf(fastq_input_ch) }
+if (params.fastqtofasta && params.fastq)        { fastqtofasta_wf(fastq_input_ch) }
+if (params.nanoplot && params.fastq)            { nanoplot_wf(fastq_input_ch) }
+if (params.filtlong && params.fastq)            { filtlong_wf(fastq_input_ch) }
+if (params.spades && params.fastq)              { spades_wf(fastq_input_ch) }
+}
+
 
 
 def helpMSG() {
@@ -44,8 +83,12 @@ def helpMSG() {
     
     log.info """
     ____________________________________________________________________________________________
+
+    
     
     Nextflow Multitool for easy use, by Mike Marquet
+    
+    Nextflow implementation = 19.10
     
     ${c_light_magenta}Usage example:${c_reset}
     nextflow run Stormrider935/multitool --fastq '*/*.fastq' --nanoplot 
@@ -58,6 +101,7 @@ def helpMSG() {
 
     ${c_cyan} --nanoplot  ${c_reset}         read quality via nanoplot           ${c_light_green}[--fastq]${c_reset}
     ${c_cyan} --fastqtofasta  ${c_reset}     converts fastq to fasta             ${c_light_green}[--fastq]${c_reset}
-    
+    ${c_cyan} --filtlong  ${c_reset}         filters fastq-files for length      ${c_light_green}[--fastq]${c_reset}
+    ${c_dim}  ..option flag:                 [--filterlenght] 2000  (your desired cut-off) ${c_reset}
     """.stripIndent()
 }
