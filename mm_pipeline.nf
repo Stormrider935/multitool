@@ -3,7 +3,7 @@ nextflow.preview.dsl=2
 
 
 if (params.help) {exit 0, helpMSG ()}
-if (!params.fastq) {exit 1, "input missing, use [--fastq]"}
+// if (!params.fastq) {exit 1, "input missing, use [--fastq]"}
 
 
 // Channel input Handling
@@ -27,48 +27,51 @@ include './modules/spades' params(output: params.output)
 
 // Sub-workflows
 
+
+workflow filtlong_wf {
+        get:    fastq
+        main:   filtlong(fastq)
+        emit:   filtlong.out   
+}
+
 workflow flye_wf {
-        get:    fasta
-        main:   flye(fasta)
+        get:    fastq
+        main:   flye(fastq)
         emit:   flye.out   
 }
 
 
-workflow fastqtofasta_wf {
-        get:    fasta
-        main:   fastqtofasta(fasta)
-        emit:   fastqtofasta.out   
-}
+// workflow fastqtofasta_wf {
+//         get:    fasta
+//         main:   fastqtofasta(fastq)
+//         emit:   fastqtofasta.out   
+// }
 
 
-workflow nanoplot_wf {
-        get:    fasta
-        main:   nanoplot(fasta)
-        emit:   nanoplot.out   
-}
+// workflow nanoplot_wf {
+//         get:    fasta
+//         main:   nanoplot(fasta)
+//         emit:   nanoplot.out   
+// }
 
 
-workflow spades_wf {
-        get:    fasta
-        main:   spades(fasta)
-        emit:   spades.out   
-}
+// workflow spades_wf {
+//         get:    fasta
+//         main:   spades(fastq)
+//         emit:   spades.out   
+// }
 
-workflow filtlong_wf {
-        get:    fasta
-        main:   filtlong(fasta)
-        emit:   filtlong.out   
-}
+
 
 
 //mainworkflow
 
 workflow {
 if (params.flye && params.fastq)                { flye_wf(fastq_input_ch) }
-if (params.fastqtofasta && params.fastq)        { fastqtofasta_wf(fastq_input_ch) }
-if (params.nanoplot && params.fastq)            { nanoplot_wf(fastq_input_ch) }
-if (params.filtlong && params.fastq)            { filtlong_wf(fastq_input_ch) }
-if (params.spades && params.fastq)              { spades_wf(fastq_input_ch) }
+// if (params.fastqtofasta && params.fastq)        { fastqtofasta_wf(fastq_input_ch) }
+// if (params.nanoplot && params.fastq)            { nanoplot_wf(fastq_input_ch) }
+// if (params.filtlong && params.fastq)            { filtlong_wf(fastq_input_ch) }
+// if (params.spades && params.fastq)              { spades_wf(fastq_input_ch) }
 }
 
 
