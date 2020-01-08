@@ -15,6 +15,21 @@ fastq_input_ch = Channel
 }
 
 
+if (params.bandage) { 
+bandage_input_ch = Channel
+                .fromPath( params.bandage, checkIfExists:true) //schaut ob es auch wirklich eine file ist
+                .map  { file -> tuple(file.baseName, file)} // map: (name_file, /Path) baseName ist ne funktion
+                .view()
+}
+
+
+if (params.fasta) {
+fasta_input_ch = Channel
+                .fromPath( params.fasta, checkIfExists:true) //schaut ob es auch wirklich eine file ist
+                .map  { file -> tuple(file.baseName, file)} // map: (name_file, /Path) baseName ist ne funktion
+                .view()
+}
+
 //moduls
 
 
@@ -24,6 +39,8 @@ include './modules/filtlong' params(output: params.output, filterlenght: params.
 include './modules/flye' params(output: params.output, meta: params.meta, g: params.g)
 include './modules/nanoplot' params(output: params.output)
 include './modules/spades' params(output: params.output)
+include './modules/bandage' params(output: params.output)
+
 
 // Sub-workflows
 
@@ -39,6 +56,14 @@ workflow flye_wf {
         main:   flye(fastq)
         emit:   flye.out   
 }
+ workflow bandage_wf {
+        get: bandage
+        main: bandage(bandage)
+        emit: bandage.out 
+
+ }
+
+
 
 
 // workflow fastqtofasta_wf {
@@ -68,6 +93,7 @@ workflow flye_wf {
 
 workflow {
 if (params.flye && params.fastq)                { flye_wf(fastq_input_ch) }
+if (params.bandage)                             { bandage_wf(bandage_input_ch)}
 // if (params.fastqtofasta && params.fastq)        { fastqtofasta_wf(fastq_input_ch) }
 // if (params.nanoplot && params.fastq)            { nanoplot_wf(fastq_input_ch) }
 // if (params.filtlong && params.fastq)            { filtlong_wf(fastq_input_ch) }
