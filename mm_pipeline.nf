@@ -1,90 +1,78 @@
 #!/usr/bin/env nextflow
 nextflow.preview.dsl=2
 
+/************* 
+* ERROR HANDLING
+*************/
+// profiles
+if ( workflow.profile == 'standard' ) { exit 1, "NO VALID EXECUTION PROFILE SELECTED, use e.g. [-profile local,docker]" }
 
-if (params.help) {exit 0, helpMSG ()}
-// if (!params.fastq) {exit 1, "input missing, use [--fastq]"}
+if (
+    workflow.profile.contains('docker')
+    ) { "engine selected" }
+else { exit 1, "No engine selected:  -profile EXECUTER,ENGINE" }
 
+if (
+    workflow.profile.contains('local') ||
 
-// Channel input Handling
-if (params.fastq) {
-fastq_input_ch = Channel
-                .fromPath( params.fastq, checkIfExists:true) //schaut ob es auch wirklich eine file ist
-                .map  { file -> tuple(file.baseName, file)} // map: (name_file, /Path) baseName ist ne funktion
-                .view()
+    workflow.profile.contains('git_action')
+    ) { "executer selected" }
+else { exit 1, "No executer selected:  -profile EXECUTER,ENGINE" }
+
 }
 
 
-if (params.bandage) { 
-bandage_input_ch = Channel
-                .fromPath( params.bandage, checkIfExists:true) //schaut ob es auch wirklich eine file ist
-                .map  { file -> tuple(file.baseName, file)} // map: (name_file, /Path) baseName ist ne funktion
-                .view()
-}
+/************* 
+* INPUT HANDLING
+*************/
 
-
-if (params.fasta) {
-fasta_input_ch = Channel
-                .fromPath( params.fasta, checkIfExists:true) //schaut ob es auch wirklich eine file ist
-                .map  { file -> tuple(file.baseName, file)} // map: (name_file, /Path) baseName ist ne funktion
-                .view()
-}
+// fasta input or via csv file
+    if (params.fasta && params.list) { fasta_input_ch = Channel
+            .fromPath( params.fasta, checkIfExists: true )
+            .splitCsv()
+            .map { row -> ["${row[0]}", file("${row[1]}", checkIfExists: true)] }
+                }
+    else if (params.fasta) { fasta_input_ch = Channel
+            .fromPath( params.fasta, checkIfExists: true)
+            .map { file -> tuple(file.baseName, file) }
+                }
+    
+// fastq input or via csv file
+    if (params.fastq && params.list) { fastq_input_ch = Channel
+            .fromPath( params.fastq, checkIfExists: true )
+            .splitCsv()
+            .map { row -> ["${row[0]}", file("${row[1]}", checkIfExists: true)] }
+                }
+    else if (params.fastq) { fastq_input_ch = Channel
+            .fromPath( params.fastq, checkIfExists: true)
+            .map { file -> tuple(file.baseName, file) }
+                }
 
 //moduls
 
-
-
-include './modules/fastqtofasta' params(output: params.output)
-include './modules/filtlong' params(output: params.output, filterlenght: params.filterlenght)
 include './modules/flye' params(output: params.output, meta: params.meta, g: params.g)
-include './modules/nanoplot' params(output: params.output)
-include './modules/spades' params(output: params.output)
-include './modules/bandage' params(output: params.output)
+
+
+// include './modules/fastqtofasta' params(output: params.output)
+// include './modules/filtlong' params(output: params.output, filterlenght: params.filterlenght)
+// include './modules/nanoplot' params(output: params.output)
+// include './modules/spades' params(output: params.output)
+// include './modules/bandage' params(output: params.output)
 
 
 // Sub-workflows
 
 
-workflow filtlong_wf {
-        get:    fastq
-        main:   filtlong(fastq)
-        emit:   filtlong.out   
-}
+
 
 workflow flye_wf {
         get:    fastq
         main:   flye(fastq)
         emit:   flye.out   
-}
- workflow bandage_wf {
-        get: bandage
-        main: bandage(bandage)
-        emit: bandage.out 
-
- }
 
 
 
 
-// workflow fastqtofasta_wf {
-//         get:    fasta
-//         main:   fastqtofasta(fastq)
-//         emit:   fastqtofasta.out   
-// }
-
-
-// workflow nanoplot_wf {
-//         get:    fasta
-//         main:   nanoplot(fasta)
-//         emit:   nanoplot.out   
-// }
-
-
-// workflow spades_wf {
-//         get:    fasta
-//         main:   spades(fastq)
-//         emit:   spades.out   
-// }
 
 
 
@@ -92,12 +80,8 @@ workflow flye_wf {
 //mainworkflow
 
 workflow {
-if (params.flye && params.fastq)                { flye_wf(fastq_input_ch) }
-if (params.bandage)                             { bandage_wf(bandage_input_ch)}
-// if (params.fastqtofasta && params.fastq)        { fastqtofasta_wf(fastq_input_ch) }
-// if (params.nanoplot && params.fastq)            { nanoplot_wf(fastq_input_ch) }
-// if (params.filtlong && params.fastq)            { filtlong_wf(fastq_input_ch) }
-// if (params.spades && params.fastq)              { spades_wf(fastq_input_ch) }
+                if (params.flye && params.fastq)                { flye_wf(fastq_input_ch) }
+
 }
 
 
