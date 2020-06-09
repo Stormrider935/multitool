@@ -19,7 +19,7 @@ if (
     ) { "executer selected" }
 else { exit 1, "No executer selected:  -profile EXECUTER,ENGINE" }
 
-}
+
 
 
 /************* 
@@ -48,28 +48,45 @@ else { exit 1, "No executer selected:  -profile EXECUTER,ENGINE" }
             .map { file -> tuple(file.baseName, file) }
                 }
 
-//moduls
+/************************** 
+* MODULES
+**************************/
+// include centrifuge from './modules/centrifuge'
+// include gtdbtk_download_db from './modules/gtdbtkgetdatabase'
+include flye from './modules/flye'
 
-include './modules/flye' params(output: params.output, meta: params.meta, g: params.g)
 
 
-// include './modules/fastqtofasta' params(output: params.output)
-// include './modules/filtlong' params(output: params.output, filterlenght: params.filterlenght)
-// include './modules/nanoplot' params(output: params.output)
-// include './modules/spades' params(output: params.output)
-// include './modules/bandage' params(output: params.output)
+/************************** 
+* DATABASES
+**************************/
+// workflow centrifuge_database_wf {
+//     main:
+//         if (params.centrifuge_db) { database_centrifuge = file( params.centrifuge_db ) }
+//         else if (!params.cloudProcess) { centrifuge_download_db() ; database_centrifuge = centrifuge_download_db.out}
+//         else if (params.cloudProcess) { 
+//             centrifuge_preload = file("gs://databases-nextflow/databases/centrifuge/gtdb_r89_54k_centrifuge.tar")
+//             if (centrifuge_preload.exists()) { database_centrifuge = centrifuge_preload }   
+//             else  { centrifuge_download_db()  ; database_centrifuge = centrifuge_download_db.out }
+//         }
+//     emit: database_centrifuge
+// } 
+
 
 
 // Sub-workflows
 
 
-
-
+// workflow centrifuge_wf {
+//     take:   fastq_input_ch
+//             centrifuge_DB
+//     main:   centrifuge(fastq_input_ch,centrifuge_DB) 
+// }
+ 
 workflow flye_wf {
-        get:    fastq
-        main:   flye(fastq)
-        emit:   flye.out   
-
+    take: fastq
+    main: flye(fastq)
+}
 
 
 
@@ -80,8 +97,8 @@ workflow flye_wf {
 //mainworkflow
 
 workflow {
-                if (params.flye && params.fastq)                { flye_wf(fastq_input_ch) }
-
+ // if (params.centrifuge && params.fastq) { centrifuge_wf(fastq_input_ch, centrifuge_database_wf()) }
+if (params.flye && params.fastq) { flye_wf(fastq_input_ch) }
 }
 
 
