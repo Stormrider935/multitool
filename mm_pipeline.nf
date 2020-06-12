@@ -148,8 +148,8 @@ if (params.canu && params.fastq) { canu_wf(fastq_input_ch) }
 * classification workflows
 ********************/
 //if (params.centrifuge && params.fastq) {centrifuge_wf(fastq_input_ch, centrifuge_database_wf())}
-// if (params.dir && centrifuge) {centrifuge_wf(rename_barcodes_wf(dir_input_ch),centrifuge_database_wf()) }
-if (params.dir) {rename_barcodes_wf(dir_input_ch)}
+if (params.dir && centrifuge) {centrifuge_wf(rename_barcodes_wf(dir_input_ch),centrifuge_database_wf()) }
+//if (params.dir) {rename_barcodes_wf(dir_input_ch)}
 
 
 
