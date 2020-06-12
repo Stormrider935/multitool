@@ -121,6 +121,7 @@ workflow rename_barcodes_wf {
     take:   barcode_dir
     main:   rename_barcodes(barcode_dir)                             
     emit:   rename_barcodes.out
+                .flatten()
                 .map { file -> tuple(file.baseName, file)}
                 .view()
 }
