@@ -48,48 +48,82 @@ else { exit 1, "No executer selected:  -profile EXECUTER,ENGINE" }
             .map { file -> tuple(file.baseName, file) }
                 }
 
+// dir input or via csv file
+    if (params.dir && params.list) { dir_input_ch = Channel
+            .fromPath( params.dir, checkIfExists: true )
+            .splitCsv()
+            .map { row -> [row[0], file("${row[1]}", checkIfExists: true , type: 'dir')] }
+            .view() }
+    else if (params.dir) { dir_input_ch = Channel
+            .fromPath( params.dir, checkIfExists: true, type: 'dir')
+            // .map { file -> tuple(file.name, file) }
+                }
+
 /************************** 
 * MODULES
 **************************/
 // include centrifuge from './modules/centrifuge'
 // include gtdbtk_download_db from './modules/gtdbtkgetdatabase'
 include flye from './modules/flye'
+include spades from './modules/spades'
+include canu from './modules/canu'
+include rename_barcodes from './modules/rename_barcodes.nf'
+include centrifuge from './modules/centrifuge.nf'
+include centrifuge_download_db from './modules/centrifuge_download_db.nf'
 
 
 
 /************************** 
 * DATABASES
 **************************/
-// workflow centrifuge_database_wf {
-//     main:
-//         if (params.centrifuge_db) { database_centrifuge = file( params.centrifuge_db ) }
-//         else if (!params.cloudProcess) { centrifuge_download_db() ; database_centrifuge = centrifuge_download_db.out}
-//         else if (params.cloudProcess) { 
-//             centrifuge_preload = file("gs://databases-nextflow/databases/centrifuge/gtdb_r89_54k_centrifuge.tar")
-//             if (centrifuge_preload.exists()) { database_centrifuge = centrifuge_preload }   
-//             else  { centrifuge_download_db()  ; database_centrifuge = centrifuge_download_db.out }
-//         }
-//     emit: database_centrifuge
-// } 
+workflow centrifuge_database_wf {
+    main:
+        if (params.centrifuge_db) { database_centrifuge = file( params.centrifuge_db ) }
+        else if (!params.cloudProcess) { centrifuge_download_db() ; database_centrifuge = centrifuge_download_db.out}
+        else if (params.cloudProcess) { 
+            centrifuge_preload = file("gs://databases-nextflow/databases/centrifuge/gtdb_r89_54k_centrifuge.tar")
+            if (centrifuge_preload.exists()) { database_centrifuge = centrifuge_preload }   
+            else  { centrifuge_download_db()  ; database_centrifuge = centrifuge_download_db.out }
+        }
+    emit: database_centrifuge
+} 
 
 
 
 // Sub-workflows
 
 
-// workflow centrifuge_wf {
-//     take:   fastq_input_ch
-//             centrifuge_DB
-//     main:   centrifuge(fastq_input_ch,centrifuge_DB) 
-// }
+
  
 workflow flye_wf {
     take: fastq
     main: flye(fastq)
 }
 
+workflow spades_wf {
+    take: fastq
+    main: spades(fastq)
+}
 
+workflow canu_wf {
+    take: fastq
+    main: canu(fastq)
+}
 
+workflow centrifuge_wf {
+    take:   fastq_input_ch
+            centrifuge_DB
+    main:   centrifuge(fastq_input_ch,centrifuge_DB) 
+    emit:   centrifuge.out.view()
+}
+
+workflow rename_barcodes_wf {
+    take:   barcode_dir
+    main:   rename_barcodes(barcode_dir)                             
+    emit:   rename_barcodes.out
+                .map { file -> tuple(file.baseName, file)}
+                .view()
+}
 
 
 
@@ -98,7 +132,26 @@ workflow flye_wf {
 
 workflow {
  // if (params.centrifuge && params.fastq) { centrifuge_wf(fastq_input_ch, centrifuge_database_wf()) }
+
+/*******************
+* Assembly workflows
+********************/
 if (params.flye && params.fastq) { flye_wf(fastq_input_ch) }
+if (params.spades && params.fastq) { spades_wf(fastq_input_ch) }
+if (params.canu && params.fastq) { canu_wf(fastq_input_ch) }
+
+
+
+
+/*******************
+* classification workflows
+********************/
+//if (params.centrifuge && params.fastq) {centrifuge_wf(fastq_input_ch, centrifuge_database_wf())}
+// if (params.dir && centrifuge) {centrifuge_wf(rename_barcodes_wf(dir_input_ch),centrifuge_database_wf()) }
+if (params.dir) {rename_barcodes_wf(dir_input_ch)}
+
+
+
 }
 
 
