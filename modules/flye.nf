@@ -10,7 +10,8 @@ process flye {
     script:
     //example github
     """
-    flye --nano-raw ${read} --genome-size 5m --threads 4 -o assembly
+    flye --nano-raw ${read} --genome-size ${params.size} -t ${params.cores}  --meta --plasmids -o flye_output
+
     mv assembly/assembly.fasta ${name}.fasta
     mv asslembly/assembly_*.gfa ${name}.gfa
     mv assembly/assembly_*.gv ${name}.gv

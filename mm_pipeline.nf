@@ -1,90 +1,130 @@
 #!/usr/bin/env nextflow
 nextflow.preview.dsl=2
 
+/************* 
+* ERROR HANDLING
+*************/
+// profiles
+if ( workflow.profile == 'standard' ) { exit 1, "NO VALID EXECUTION PROFILE SELECTED, use e.g. [-profile local,docker]" }
 
-if (params.help) {exit 0, helpMSG ()}
-// if (!params.fastq) {exit 1, "input missing, use [--fastq]"}
+if (
+    workflow.profile.contains('docker')
+    ) { "engine selected" }
+else { exit 1, "No engine selected:  -profile EXECUTER,ENGINE" }
 
+if (
+    workflow.profile.contains('local') ||
 
-// Channel input Handling
-if (params.fastq) {
-fastq_input_ch = Channel
-                .fromPath( params.fastq, checkIfExists:true) //schaut ob es auch wirklich eine file ist
-                .map  { file -> tuple(file.baseName, file)} // map: (name_file, /Path) baseName ist ne funktion
-                .view()
-}
-
-
-if (params.bandage) { 
-bandage_input_ch = Channel
-                .fromPath( params.bandage, checkIfExists:true) //schaut ob es auch wirklich eine file ist
-                .map  { file -> tuple(file.baseName, file)} // map: (name_file, /Path) baseName ist ne funktion
-                .view()
-}
-
-
-if (params.fasta) {
-fasta_input_ch = Channel
-                .fromPath( params.fasta, checkIfExists:true) //schaut ob es auch wirklich eine file ist
-                .map  { file -> tuple(file.baseName, file)} // map: (name_file, /Path) baseName ist ne funktion
-                .view()
-}
-
-//moduls
+    workflow.profile.contains('git_action')
+    ) { "executer selected" }
+else { exit 1, "No executer selected:  -profile EXECUTER,ENGINE" }
 
 
 
-include './modules/fastqtofasta' params(output: params.output)
-include './modules/filtlong' params(output: params.output, filterlenght: params.filterlenght)
-include './modules/flye' params(output: params.output, meta: params.meta, g: params.g)
-include './modules/nanoplot' params(output: params.output)
-include './modules/spades' params(output: params.output)
-include './modules/bandage' params(output: params.output)
+
+/************* 
+* INPUT HANDLING
+*************/
+
+// fasta input or via csv file
+    if (params.fasta && params.list) { fasta_input_ch = Channel
+            .fromPath( params.fasta, checkIfExists: true )
+            .splitCsv()
+            .map { row -> ["${row[0]}", file("${row[1]}", checkIfExists: true)] }
+                }
+    else if (params.fasta) { fasta_input_ch = Channel
+            .fromPath( params.fasta, checkIfExists: true)
+            .map { file -> tuple(file.baseName, file) }
+                }
+    
+// fastq input or via csv file
+    if (params.fastq && params.list) { fastq_input_ch = Channel
+            .fromPath( params.fastq, checkIfExists: true )
+            .splitCsv()
+            .map { row -> ["${row[0]}", file("${row[1]}", checkIfExists: true)] }
+                }
+    else if (params.fastq) { fastq_input_ch = Channel
+            .fromPath( params.fastq, checkIfExists: true)
+            .map { file -> tuple(file.baseName, file) }
+                }
+
+// dir input or via csv file
+    if (params.dir && params.list) { dir_input_ch = Channel
+            .fromPath( params.dir, checkIfExists: true )
+            .splitCsv()
+            .map { row -> [row[0], file("${row[1]}", checkIfExists: true , type: 'dir')] }
+            .view() }
+    else if (params.dir) { dir_input_ch = Channel
+            .fromPath( params.dir, checkIfExists: true, type: 'dir')
+            // .map { file -> tuple(file.name, file) }
+                }
+
+/************************** 
+* MODULES
+**************************/
+// include centrifuge from './modules/centrifuge'
+// include gtdbtk_download_db from './modules/gtdbtkgetdatabase'
+include flye from './modules/flye'
+include spades from './modules/spades'
+include canu from './modules/canu'
+include rename_barcodes from './modules/rename_barcodes.nf'
+include centrifuge from './modules/centrifuge.nf'
+include centrifuge_download_db from './modules/centrifuge_download_db.nf'
+
+
+
+/************************** 
+* DATABASES
+**************************/
+workflow centrifuge_database_wf {
+    main:
+        if (params.centrifuge_db) { database_centrifuge = file( params.centrifuge_db ) }
+        else if (!params.cloudProcess) { centrifuge_download_db() ; database_centrifuge = centrifuge_download_db.out}
+        else if (params.cloudProcess) { 
+            centrifuge_preload = file("gs://databases-nextflow/databases/centrifuge/gtdb_r89_54k_centrifuge.tar")
+            if (centrifuge_preload.exists()) { database_centrifuge = centrifuge_preload }   
+            else  { centrifuge_download_db()  ; database_centrifuge = centrifuge_download_db.out }
+        }
+    emit: database_centrifuge
+} 
+
 
 
 // Sub-workflows
 
 
-workflow filtlong_wf {
-        get:    fastq
-        main:   filtlong(fastq)
-        emit:   filtlong.out   
-}
 
+ 
 workflow flye_wf {
-        get:    fastq
-        main:   flye(fastq)
-        emit:   flye.out   
+    take: fastq
+    main: flye(fastq)
 }
- workflow bandage_wf {
-        get: bandage
-        main: bandage(bandage)
-        emit: bandage.out 
 
- }
+workflow spades_wf {
+    take: fastq
+    main: spades(fastq)
+}
 
+workflow canu_wf {
+    take: fastq
+    main: canu(fastq)
+}
 
+workflow centrifuge_wf {
+    take:   fastq_input_ch
+            centrifuge_DB
+    main:   centrifuge(fastq_input_ch,centrifuge_DB) 
+    emit:   centrifuge.out.view()
+}
 
-
-// workflow fastqtofasta_wf {
-//         get:    fasta
-//         main:   fastqtofasta(fastq)
-//         emit:   fastqtofasta.out   
-// }
-
-
-// workflow nanoplot_wf {
-//         get:    fasta
-//         main:   nanoplot(fasta)
-//         emit:   nanoplot.out   
-// }
-
-
-// workflow spades_wf {
-//         get:    fasta
-//         main:   spades(fastq)
-//         emit:   spades.out   
-// }
+workflow rename_barcodes_wf {
+    take:   barcode_dir
+    main:   rename_barcodes(barcode_dir)                             
+    emit:   rename_barcodes.out
+                .flatten()
+                .map { file -> tuple(file.baseName, file)}
+                .view()
+}
 
 
 
@@ -92,12 +132,27 @@ workflow flye_wf {
 //mainworkflow
 
 workflow {
-if (params.flye && params.fastq)                { flye_wf(fastq_input_ch) }
-if (params.bandage)                             { bandage_wf(bandage_input_ch)}
-// if (params.fastqtofasta && params.fastq)        { fastqtofasta_wf(fastq_input_ch) }
-// if (params.nanoplot && params.fastq)            { nanoplot_wf(fastq_input_ch) }
-// if (params.filtlong && params.fastq)            { filtlong_wf(fastq_input_ch) }
-// if (params.spades && params.fastq)              { spades_wf(fastq_input_ch) }
+ // if (params.centrifuge && params.fastq) { centrifuge_wf(fastq_input_ch, centrifuge_database_wf()) }
+
+/*******************
+* Assembly workflows
+********************/
+if (params.flye && params.fastq) { flye_wf(fastq_input_ch) }
+if (params.spades && params.fastq) { spades_wf(fastq_input_ch) }
+if (params.canu && params.fastq) { canu_wf(fastq_input_ch) }
+
+
+
+
+/*******************
+* classification workflows
+********************/
+//if (params.centrifuge && params.fastq) {centrifuge_wf(fastq_input_ch, centrifuge_database_wf())}
+// if (params.dir && centrifuge) {centrifuge_wf(rename_barcodes_wf(dir_input_ch),centrifuge_database_wf()) }
+if (params.dir) {rename_barcodes_wf(dir_input_ch)}
+
+
+
 }
 
 
