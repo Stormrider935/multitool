@@ -11,9 +11,10 @@ process rename_barcodes {
     cd ${barcode_dir} && \
     for subdir in barcode* ; do cat \$subdir/*.fastq > \$subdir.fastq; done;
     while IFS=, read orig new; do mv "\$orig" "\$new.fastq"; done < ${params.rename}
+
     """
 }
-
+//output: renames barcode folder to rename file but creates barcode.fastq and not rename.fastq
 // wie muss die rename barcode file aussehen
 // barcode1.fastq,testfile1
 // barcode2.fastq,testfile2

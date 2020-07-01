@@ -1,6 +1,7 @@
 #!/usr/bin/env nextflow
 nextflow.preview.dsl=2
 
+if (params.help) { exit 0, helpMSG() }
 /************* 
 * ERROR HANDLING
 *************/
@@ -91,10 +92,7 @@ workflow centrifuge_database_wf {
 
 
 // Sub-workflows
-
-
-
- 
+//assemblers
 workflow flye_wf {
     take: fastq
     main: flye(fastq)
@@ -110,6 +108,7 @@ workflow canu_wf {
     main: canu(fastq)
 }
 
+// Taxonomic classification
 workflow centrifuge_wf {
     take:   fastq_input_ch
             centrifuge_DB
@@ -117,6 +116,8 @@ workflow centrifuge_wf {
     emit:   centrifuge.out.view()
 }
 
+
+//QOL
 workflow rename_barcodes_wf {
     take:   barcode_dir
     main:   rename_barcodes(barcode_dir)                             
@@ -148,8 +149,9 @@ if (params.canu && params.fastq) { canu_wf(fastq_input_ch) }
 * classification workflows
 ********************/
 //if (params.centrifuge && params.fastq) {centrifuge_wf(fastq_input_ch, centrifuge_database_wf())}
-if (params.dir && centrifuge) {centrifuge_wf(rename_barcodes_wf(dir_input_ch),centrifuge_database_wf()) }
-//if (params.dir) {rename_barcodes_wf(dir_input_ch)}
+//if (params.dir && centrifuge) {centrifuge_wf(rename_barcodes_wf(dir_input_ch),centrifuge_database_wf()) }
+if (params.dir) {rename_barcodes_wf(dir_input_ch)}
+if (params.fastq && params.centrifuge) {centrifuge_wf(fastq_input_ch, centrifuge_database_wf())}
 
 
 
@@ -179,13 +181,16 @@ def helpMSG() {
     ${c_light_green}Input:${c_reset}
     ${c_light_green} --fastq ${c_reset}            '*.fastq'   -> read file(s) in fastq, one sample per file - uses filename
 
-    ${c_cyan} Workflow    ${c_reset}                                             ${c_light_green}Input:${c_reset}
-    ${c_cyan} --flye  ${c_reset}             assembly via flye-assembler         ${c_light_green}[--fastq]${c_reset}
-    ${c_dim}  ..option/mandatory flags:      [--meta] for metagenomes  [--g] mandatory! estimated genome size for ${c_reset}
+    ${c_cyan} Workflow    ${c_reset}                                                     ${c_light_green}Input:${c_reset}
+    ${c_cyan} --flye  ${c_reset}             assembly via flye-assembler                 ${c_light_green}[--fastq]${c_reset}
+    ${c_dim}  ..option/mandatory flags:      [--size] mandatory! estimated genome size for ${c_reset}
 
-    ${c_cyan} --nanoplot  ${c_reset}         read quality via nanoplot           ${c_light_green}[--fastq]${c_reset}
-    ${c_cyan} --fastqtofasta  ${c_reset}     converts fastq to fasta             ${c_light_green}[--fastq]${c_reset}
-    ${c_cyan} --filtlong  ${c_reset}         filters fastq-files for length      ${c_light_green}[--fastq]${c_reset}
+    ${c_cyan} --centrifuge  ${c_reset}       Taxonomic classification via centrifuge     ${c_light_green}[--fastq]${c_reset}
+    ${c_dim}  ..option/mandatory flags:      --centrifuge_db /path/to/db for ${c_reset}
+
+    ${c_cyan} --nanoplot  ${c_reset}         read quality via nanoplot                   ${c_light_green}[--fastq]${c_reset}
+    ${c_cyan} --fastqtofasta  ${c_reset}     converts fastq to fasta                     ${c_light_green}[--fastq]${c_reset}
+    ${c_cyan} --filtlong  ${c_reset}         filters fastq-files for length              ${c_light_green}[--fastq]${c_reset}
     ${c_dim}  ..option flag:                 [--filterlenght] 2000  (your desired cut-off) ${c_reset}
     """.stripIndent()
 }
