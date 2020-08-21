@@ -1,6 +1,7 @@
 process centrifuge {
       publishDir "${params.output}/${name}/centrifuge", mode: 'copy', pattern: "${name}_pavian_report_filtered.csv"
       publishDir "${params.output}/${name}/centrifuge", mode: 'copy', pattern: "${name}.out"
+      publishDir "${params.output}/all_centrifuge_reports", mode: 'copy', pattern: "${name}_pavian_report_filtered.csv"
       label 'centrifuge'
     input:
       tuple val(name), file(fastq) 
